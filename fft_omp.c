@@ -16,8 +16,6 @@ void fft(double complex* array, int array_size)
   double complex *W;
   int n = 1, i;
   int a = array_size / 2;
-  double complex temp;
-  double complex Temp;
 
   // Alocate and init W
   W = (double complex*) malloc( array_size/2 * sizeof(complex double));
@@ -29,7 +27,7 @@ void fft(double complex* array, int array_size)
   // For through stages
   for(int j = 0; j < log2(array_size); j++) {
   // Main loop paralelization
- #pragma omp parallel shared ( array, array_size, W, n, a ) private (i, temp, Temp )
+ #pragma omp parallel shared ( array, array_size, W, n, a ) private (i)
  #pragma omp for nowait
     for(i = 0; i < array_size; i++) {
       if(!(i & n)) {
