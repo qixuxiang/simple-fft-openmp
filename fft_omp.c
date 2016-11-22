@@ -28,7 +28,7 @@ void fft(double complex* array, unsigned long array_size)
   for(unsigned long j = 0; j < log2(array_size); j++) {
   // Main loop paralelization
  #pragma omp parallel shared ( array, array_size, W, n, a ) private (i)
- #pragma omp for nowait
+ #pragma omp for
     for(i = 0; i < array_size; i++) {
       if(!(i & n)) {
          double complex temp_first_component = array[i];
