@@ -4,7 +4,9 @@
 #include <complex.h>
 #include <omp.h>
 
-//#define DEBUG
+#ifndef M_PI
+#define M_PI 3.1415926535
+#endif
 
 void fftOmp_initWtable(double complex *W, int W_size);
 void fftUtils_reverseArray(double complex* array, int array_size);
@@ -13,9 +15,13 @@ int reverse(int N, int n);
 
 void fft(double complex* array, unsigned long array_size)
 {
+  FILE *fp;
   double complex *W;
   unsigned long n = 1, i;
   unsigned long a = array_size / 2;
+
+  // Create file
+  fp = fopen("results.txt", "w");
 
   // Alocate and init W
   W = (double complex*) malloc( array_size/2 * sizeof(complex double));
@@ -24,11 +30,13 @@ void fft(double complex* array, unsigned long array_size)
   // Bits Inversion
   fftUtils_reverseArray(array, 8);
 
+  // Executing main FFT algorithm
+  printf("  Executing FFT... \n");
   // For through stages
   for(unsigned long j = 0; j < log2(array_size); j++) {
   // Main loop paralelization
- #pragma omp parallel shared ( array, array_size, W, n, a ) private (i)
- #pragma omp for
+#pragma omp parallel shared ( array, array_size, W, n, a ) private (i)
+#pragma omp for
     for(i = 0; i < array_size; i++) {
       if(!(i & n)) {
          double complex temp_first_component = array[i];
@@ -42,12 +50,11 @@ void fft(double complex* array, unsigned long array_size)
     a = a / 2;
   }
 
-  #ifdef DEBUG
-    for (int i = 0; i < array_size; i++) {
-      printf("samples[%i] = %.2f + %.2fi\n", i, creal(array[i]), cimag(array[i]));
-    }
-  #endif
+  for (int i = 0; i < array_size; i++) {
+    fprintf(fp, "Samples[%i] = %.2f + %.2fi\n", i, creal(array[i]), cimag(array[i]));
+  }
 
+  fclose(fp);
   free(W);
 }
 
@@ -55,12 +62,11 @@ int main(int argc, char const *argv[]) {
 
   double complex samples[8] = {1, 2, 3, 4, 5, 6, 7, 8};
   double complex *input;
-
-  int exponent;
+  int exponent, i;
+  int nThreads, tid, nUsedThreads;
   unsigned long n;
-
   static double seed;
-  int nThreads, tid;
+
 
   printf(" ********************************* \n");
   printf(" *** FFT - OMP implentation  ***** \n");
@@ -71,6 +77,15 @@ int main(int argc, char const *argv[]) {
   printf ( "  Number of processors available = %d\n", omp_get_num_procs ( ) );
   printf ( "  Number of threads =              %d\n", omp_get_max_threads ( ) );
   printf ( "\n");
+  printf ( "  Enter number of threads you want to use: \n" );
+  scanf ( "\t %i", &nUsedThreads);
+
+  omp_set_num_threads(nUsedThreads);
+  #pragma omp parallel
+  {
+    #pragma omp master
+    printf("  Using %i threads.\n", omp_get_num_threads());
+  }
 
   printf ( "  Preparing for samples generation... Enter n (2^n) : \n" );
   scanf ( "\t %i", &exponent);
@@ -81,18 +96,20 @@ int main(int argc, char const *argv[]) {
 
   input = ( double complex * ) malloc ( n * sizeof ( double complex) );
   // Initialize data
-  for (int i = 0; i < n; i++ )
+#pragma omp parallel shared (input , seed) private (i)
+#pragma omp for
+  for (i = 0; i < n; i++ )
   {
     input[i] = fftOmp_randomGen(&seed);
     input[i] += fftOmp_randomGen(&seed)*I;
   }
-  printf(" Done! \n");
+  printf("  Done! \n");
   // Main FFT function
   fft(input, n);
 
-  printf(" Success! \n");
-  free(input);
+  printf("  Success! Results are in results.txt file\n");
 
+  free(input);
   return 0;
 }
 /******************************************************************************/
@@ -140,7 +157,6 @@ int reverse(int N, int n)
 
 void fftUtils_reverseArray(double complex* array, int array_size)
 {
-  double complex temp_array[MAX];
   double complex temp;
   int reversion_idx, i;
 
