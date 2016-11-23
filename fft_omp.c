@@ -4,12 +4,12 @@
 #include <complex.h>
 #include <omp.h>
 
-#include "fft_utils.h"
-
 //#define DEBUG
 
 void fftOmp_initWtable(double complex *W, int W_size);
+void fftUtils_reverseArray(double complex* array, int array_size);
 double fftOmp_randomGen (double *seed);
+int reverse(int N, int n);
 
 void fft(double complex* array, unsigned long array_size)
 {
@@ -124,4 +124,35 @@ void fftOmp_initWtable(double complex *W, int number_of_samples)
   for(int i = 2; i < number_of_samples/2; i++) {
       W[i] = cpow(W[1], (double complex)i);
   }
+}
+/******************************************************************************/
+
+int reverse(int N, int n)
+{
+  int j, p = 0;
+  for(j = 1; j <= log2(N); j++) {
+    if(n & (1 << ((int) log2(N) - j)))
+      p |= 1 << (j - 1);
+  }
+  return p;
+}
+/******************************************************************************/
+
+void fftUtils_reverseArray(double complex* array, int array_size)
+{
+  double complex temp_array[MAX];
+  double complex temp;
+  int reversion_idx, i;
+
+#pragma omp parallel shared ( array, array_size) private (i)
+#pragma omp for
+  for(i = 0; i < array_size/2; i++)
+  {
+    reversion_idx = reverse(array_size, i);
+
+    temp = array[i];
+    array[i] = array[reversion_idx];
+    array[reversion_idx] = temp;
+  }
+
 }
